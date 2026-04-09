@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Family Tree</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="i18n.js"></script>
+</head>
+<body>
+
+  <!-- ============================
+       WELCOME OVERLAY
+       (shown when no families exist)
+       ============================ -->
+  <div id="welcome-overlay" class="hidden">
+    <div class="welcome-card">
+      <i class="fas fa-tree welcome-icon"></i>
+      <h2 data-i18n="welcomeTitle">Welcome to Family Tree</h2>
+      <p data-i18n="welcomeDesc">Create your first family tree to get started</p>
+      <div class="welcome-form">
+        <input type="text" id="welcome-family-name"
+          data-i18n-ph="phFamilyName" placeholder="e.g. The Nguyens…"
+          onkeydown="if(event.key==='Enter') createFamilyFromWelcome()">
+        <button class="btn btn-primary" onclick="createFamilyFromWelcome()">
+          <i class="fas fa-plus"></i>
+          <span data-i18n="btnCreate">Create</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div id="app">
+
+    <!-- Header -->
+    <header>
+      <div class="header-left">
+        <!-- Family switcher: click to manage families -->
+        <button id="btn-family" class="family-switcher" onclick="openFamiliesModal()">
+          <i class="fas fa-tree"></i>
+          <span id="current-family-name">Family Tree</span>
+          <i class="fas fa-chevron-down switcher-chevron"></i>
+        </button>
+      </div>
+      <div class="header-right">
+        <button id="btn-add-person" class="btn btn-primary">
+          <i class="fas fa-user-plus"></i>
+          <span data-i18n="addPerson">Add Person</span>
+        </button>
+        <button id="btn-import" class="btn btn-secondary">
+          <i class="fas fa-upload"></i>
+          <span data-i18n="importBtn">Import</span>
+        </button>
+        <button id="btn-export" class="btn btn-secondary">
+          <i class="fas fa-download"></i>
+          <span data-i18n="exportBtn">Export</span>
+        </button>
+        <div class="header-divider"></div>
+        <button id="btn-lang" class="btn btn-ghost lang-toggle"
+          onclick="toggleLanguage()" title="Switch language">🇺🇸 EN</button>
+
+        <!-- Mobile-only ⋯ menu -->
+        <button id="btn-more" class="btn btn-ghost mobile-only" onclick="toggleMoreMenu(event)">
+          <i class="fas fa-ellipsis-v"></i>
+        </button>
+      </div>
+
+      <!-- More dropdown (mobile) -->
+      <div id="more-menu" class="more-menu hidden">
+        <button onclick="openImportModal(); closeMoreMenu()">
+          <i class="fas fa-upload"></i>
+          <span data-i18n="importBtn">Import</span>
+        </button>
+        <button onclick="exportData(); closeMoreMenu()">
+          <i class="fas fa-download"></i>
+          <span data-i18n="exportBtn">Export</span>
+        </button>
+        <div class="more-menu-divider"></div>
+        <button onclick="toggleLanguage(); closeMoreMenu()">
+          <i class="fas fa-language"></i>
+          <span id="more-lang-label">🇺🇸 EN</span>
+        </button>
+      </div>
+
+    </header>
+
+    <!-- Main -->
+    <main>
+
+      <!-- Tree Canvas -->
+      <div id="tree-container">
+        <svg id="tree-svg">
+          <defs>
+            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.12)"/>
+            </filter>
+          </defs>
+          <g id="tree-group">
+            <g id="edges-group"></g>
+            <g id="nodes-group"></g>
+          </g>
+        </svg>
+
+        <!-- Zoom controls -->
+        <div id="tree-controls">
+          <button id="btn-zoom-in"  data-i18n-title="zoomIn"><i class="fas fa-plus"></i></button>
+          <button id="btn-zoom-out" data-i18n-title="zoomOut"><i class="fas fa-minus"></i></button>
+          <button id="btn-zoom-fit" data-i18n-title="fitScreen"><i class="fas fa-compress-arrows-alt"></i></button>
+        </div>
+
+        <!-- Empty state (family exists but has no people) -->
+        <div id="empty-state">
+          <i class="fas fa-users"></i>
+          <h2 data-i18n="emptyTitle">Start Your Family Tree</h2>
+          <p data-i18n="emptyDesc">Add your first family member to begin</p>
+          <button class="btn btn-primary" onclick="openAddPersonModal()">
+            <i class="fas fa-user-plus"></i>
+            <span data-i18n="addFirstPerson">Add First Person</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Sidebar / mobile bottom-sheet -->
+      <aside id="sidebar" class="hidden">
+        <!-- mobile drag handle -->
+        <div class="sidebar-drag-handle"></div>
+        <div id="sidebar-content"></div>
+      </aside>
+
+      <!-- Mobile overlay (dims tree when sidebar is open) -->
+      <div id="sidebar-overlay" onclick="closeSidebarMobile()"></div>
+
+    </main>
+  </div>
+
+  <!-- Mobile FAB (visible on small screens only) -->
+  <button id="fab-add" class="fab" onclick="openAddPersonModal()">
+    <i class="fas fa-user-plus"></i>
+  </button>
+
+  <!-- ============================
+       MODAL: Manage Families
+       ============================ -->
+  <div id="modal-families" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeModal('modal-families')"></div>
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h2 data-i18n="families">My Families</h2>
+        <button class="btn-icon" onclick="closeModal('modal-families')"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <!-- Create new family -->
+        <div class="family-create-row">
+          <input type="text" id="new-family-name"
+            data-i18n-ph="phFamilyName" placeholder="e.g. The Nguyens…"
+            onkeydown="if(event.key==='Enter') createFamilyFromModal()">
+          <button class="btn btn-primary" onclick="createFamilyFromModal()">
+            <i class="fas fa-plus"></i>
+            <span data-i18n="btnCreate">Create</span>
+          </button>
+        </div>
+        <!-- Families list -->
+        <div id="families-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================
+       MODAL: Add / Edit Person
+       ============================ -->
+  <div id="modal-person" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeModal('modal-person')"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-person-title">Add Person</h2>
+        <button class="btn-icon" onclick="closeModal('modal-person')"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="form-person" onsubmit="return false">
+          <input type="hidden" id="person-id">
+
+          <div class="form-section">
+            <div class="form-section-title" data-i18n="sectionBasic">Basic Information</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="person-firstname">
+                  <span data-i18n="firstName">First Name</span>
+                  <span class="required">*</span>
+                </label>
+                <input type="text" id="person-firstname"
+                  data-i18n-ph="phFirstName" placeholder="First name" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label for="person-lastname" data-i18n="lastName">Last Name</label>
+                <input type="text" id="person-lastname"
+                  data-i18n-ph="phLastName" placeholder="Last name" autocomplete="off">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="person-maiden" data-i18n="nickname">Nickname</label>
+                <input type="text" id="person-maiden"
+                  data-i18n-ph="phNickname" placeholder="Nickname" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label for="person-gender" data-i18n="gender">Gender</label>
+                <select id="person-gender">
+                  <option value="unknown" data-i18n="genderUnknown">Unknown</option>
+                  <option value="male"    data-i18n="genderMale">Male</option>
+                  <option value="female"  data-i18n="genderFemale">Female</option>
+                  <option value="other"   data-i18n="genderOther">Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title" data-i18n="sectionBirth">Birth</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="person-birth-date" data-i18n="labelDate">Date</label>
+                <input type="text" id="person-birth-date" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" oninput="autoSlashDate(this)">
+              </div>
+              <div class="form-group">
+                <label for="person-birth-place" data-i18n="labelPlace">Place</label>
+                <input type="text" id="person-birth-place"
+                  data-i18n-ph="phCity" placeholder="City, Country" autocomplete="off">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">
+              <span data-i18n="sectionDeath">Death</span>
+              <span class="form-section-subtitle">(<span data-i18n="leaveBlankLiving">leave blank if living</span>)</span>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="person-death-date" data-i18n="labelDate">Date</label>
+                <input type="text" id="person-death-date" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" oninput="autoSlashDate(this)">
+              </div>
+              <div class="form-group">
+                <label for="person-death-place" data-i18n="labelPlace">Place</label>
+                <input type="text" id="person-death-place"
+                  data-i18n-ph="phCity" placeholder="City, Country" autocomplete="off">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title" data-i18n="sectionAdditional">Additional</div>
+            <div class="form-group">
+              <label data-i18n="labelPhoto">Photo</label>
+              <div class="photo-upload-widget">
+                <div id="photo-preview" class="photo-preview hidden">
+                  <img id="photo-preview-img" src="" alt="">
+                  <button type="button" class="photo-remove" onclick="clearPhoto()" title="Remove photo">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+                <label class="photo-upload-btn" for="person-photo-file">
+                  <i class="fas fa-camera"></i>
+                  <span data-i18n="uploadPhoto">Upload Photo</span>
+                  <input type="file" id="person-photo-file" accept="image/*"
+                    style="display:none" onchange="handlePhotoUpload(event)">
+                </label>
+                <span class="photo-or" data-i18n="orLabel">or</span>
+                <input type="url" id="person-photo" data-i18n-ph="phPhotoUrl"
+                  placeholder="https://…" autocomplete="off" oninput="previewPhotoUrl(this.value)">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="person-notes" data-i18n="labelNotes">Notes</label>
+              <textarea id="person-notes" rows="3"
+                data-i18n-ph="phNotes" placeholder="Biography…"></textarea>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('modal-person')">
+          <span data-i18n="btnCancel">Cancel</span>
+        </button>
+        <button class="btn btn-primary" onclick="savePerson()">
+          <i class="fas fa-save"></i>
+          <span data-i18n="btnSave">Save</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================
+       MODAL: Add Relationship
+       ============================ -->
+  <div id="modal-relation" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeModal('modal-relation')"></div>
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h2 id="modal-relation-title">Add Relationship</h2>
+        <button class="btn-icon" onclick="closeModal('modal-relation')"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <div class="relation-type-grid">
+            <button class="rel-type-btn" data-rel-type="parent" onclick="selectRelationType('parent', this)">
+              <i class="fas fa-arrow-up"></i>
+              <span data-i18n="relTypeParent">Parent</span>
+            </button>
+            <button class="rel-type-btn" data-rel-type="child" onclick="selectRelationType('child', this)">
+              <i class="fas fa-arrow-down"></i>
+              <span data-i18n="relTypeChild">Child</span>
+            </button>
+            <button class="rel-type-btn" data-rel-type="spouse" onclick="selectRelationType('spouse', this)">
+              <i class="fas fa-heart"></i>
+              <span data-i18n="relTypeSpouse">Spouse</span>
+            </button>
+            <button class="rel-type-btn" data-rel-type="sibling" onclick="selectRelationType('sibling', this)">
+              <i class="fas fa-people-arrows"></i>
+              <span data-i18n="relTypeSibling">Sibling</span>
+            </button>
+          </div>
+        </div>
+        <div id="relation-person-select" style="display:none">
+          <div class="form-group">
+            <label data-i18n="searchPersonLabel">Search Person</label>
+            <input type="text" id="relation-search"
+              data-i18n-ph="phSearchName" placeholder="Type a name…"
+              oninput="filterRelationSearch()" autocomplete="off">
+          </div>
+          <div id="relation-search-results"></div>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid #f0f0f5">
+            <button class="btn btn-secondary" style="width:100%" onclick="addNewPersonWithRelation()">
+              <i class="fas fa-user-plus"></i>
+              <span data-i18n="createAndLink">Create New Person &amp; Link</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================
+       MODAL: Import
+       ============================ -->
+  <div id="modal-import" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeModal('modal-import')"></div>
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h2 data-i18n="importTitle">Import Data</h2>
+        <button class="btn-icon" onclick="closeModal('modal-import')"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom:12px;color:#666;font-size:0.875rem" data-i18n="importDesc">
+          Upload a previously exported JSON file or paste JSON below.
+        </p>
+        <div class="form-group">
+          <label data-i18n="uploadFile">Upload File</label>
+          <input type="file" id="import-file" accept=".json"
+            onchange="loadImportFile(event)" style="padding:6px">
+        </div>
+        <div class="form-group">
+          <label data-i18n="orPasteJson">Or Paste JSON</label>
+          <textarea id="import-json" rows="8" placeholder='{"people": {...}}'></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('modal-import')">
+          <span data-i18n="btnCancel">Cancel</span>
+        </button>
+        <button class="btn btn-primary" onclick="importData()">
+          <i class="fas fa-upload"></i>
+          <span data-i18n="btnImport">Import</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

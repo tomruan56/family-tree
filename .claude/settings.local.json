@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(npm --version)",
+      "Bash(npm install:*)",
+      "Bash(node -e \"require\\(''''better-sqlite3''''\\)\")",
+      "Bash(node -e \"require\\(''better-sqlite3''\\)\")",
+      "Bash(npm uninstall:*)",
+      "Bash(curl -s -X POST http://localhost:3000/api/families -H \"Content-Type: application/json\" -H \"X-Device-Id: test123\" -d '{\"\"id\"\":\"\"f_abc\"\",\"\"name\"\":\"\"Test Family\"\",\"\"createdAt\"\":\"\"2026-01-01T00:00:00Z\"\"}')",
+      "Bash(curl -s -H \"X-Device-Id: test123\" http://localhost:3000/api/families)",
+      "Bash(timeout 3 node server.js)"
+    ]
+  }
+}
