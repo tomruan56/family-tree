@@ -133,7 +133,7 @@
 
     vi: {
       // App
-      appTitle:             'Cây Gia Phả',
+      appTitle:             'Quản lý Gia Phả',
       // Header
       addPerson:            'Thêm Người',
       importBtn:            'Nhập',
