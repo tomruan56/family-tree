@@ -9,6 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/three@0.134.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
   <script src="i18n.js"></script>
 </head>
 <body>
@@ -116,6 +118,14 @@
           <button id="btn-zoom-in"  data-i18n-title="zoomIn"><i class="fas fa-plus"></i></button>
           <button id="btn-zoom-out" data-i18n-title="zoomOut"><i class="fas fa-minus"></i></button>
           <button id="btn-zoom-fit" data-i18n-title="fitScreen"><i class="fas fa-compress-arrows-alt"></i></button>
+          <div class="tree-ctrl-divider"></div>
+          <button id="btn-3d-toggle" title="3D Mode" onclick="toggle3DMode()">
+            <i class="fas fa-cube"></i>
+          </button>
+        </div>
+        <!-- 3D orbit hint -->
+        <div id="hint-3d" class="hint-3d hidden">
+          <i class="fas fa-mouse"></i> Drag to rotate &nbsp;·&nbsp; Scroll to zoom &nbsp;·&nbsp; Right-drag to pan
         </div>
 
         <!-- Empty state (family exists but has no people) -->
@@ -402,5 +412,6 @@
   <div id="toast-container"></div>
 
   <script src="app.js"></script>
+  <script src="tree3d.js"></script>
 </body>
 </html>

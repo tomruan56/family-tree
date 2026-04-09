@@ -357,6 +357,39 @@ main {
 }
 #tree-controls button:hover { background: #f5f5f8; }
 
+/* 3D toggle active state */
+#btn-3d-toggle.active {
+  background: #1a1a2e;
+  color: #fff;
+  border-color: #1a1a2e;
+}
+#btn-3d-toggle.active:hover { background: #2d2d4a; }
+
+/* Thin divider between zoom and 3D button */
+.tree-ctrl-divider {
+  height: 1px;
+  background: #e0e0ea;
+  margin: 2px 4px;
+}
+
+/* 3D controls hint bar */
+.hint-3d {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(26, 26, 46, 0.72);
+  color: #fff;
+  font-size: 0.75rem;
+  padding: 6px 14px;
+  border-radius: 20px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+}
+.hint-3d.hidden { display: none; }
+
 /* ============================================================
    Empty State
    ============================================================ */

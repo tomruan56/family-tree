@@ -18,6 +18,7 @@ const state = {
   families:        [],   // loaded from server
   selectedId:      null,
   pendingRelation: null,
+  mode3d:          false,
 };
 
 // ── Device ID: stable anonymous identifier stored in localStorage ──
@@ -482,14 +483,22 @@ function initTree() {
   svg.on('click', function(ev) {
     if (ev.target === this) { state.selectedId = null; renderTree(); renderSidebar(); }
   });
-  d3.select('#btn-zoom-in').on('click',  () => svg.transition().duration(250).call(zoomBehavior.scaleBy, 1.3));
-  d3.select('#btn-zoom-out').on('click', () => svg.transition().duration(250).call(zoomBehavior.scaleBy, 0.77));
+  d3.select('#btn-zoom-in').on('click',  () => {
+    if (state.mode3d) { Tree3D.zoom(1.3); return; }
+    svg.transition().duration(250).call(zoomBehavior.scaleBy, 1.3);
+  });
+  d3.select('#btn-zoom-out').on('click', () => {
+    if (state.mode3d) { Tree3D.zoom(0.77); return; }
+    svg.transition().duration(250).call(zoomBehavior.scaleBy, 0.77);
+  });
   d3.select('#btn-zoom-fit').on('click', fitTree);
 }
 
 function renderTree() {
   const people = getAllPeople();
   document.getElementById('empty-state').classList.toggle('hidden', people.length > 0);
+
+  if (state.mode3d) { Tree3D.refresh(); return; }
 
   const { nodes, edges } = buildLayout();
   const edgesG = d3.select('#edges-group'); edgesG.selectAll('*').remove();
@@ -586,6 +595,7 @@ function drawPersonNode(container, person) {
 }
 
 function fitTree() {
+  if (state.mode3d) { Tree3D.fitCamera(); return; }
   const { nodes } = buildLayout();
   if (!nodes.length) return;
   const svgEl = document.getElementById('tree-svg');
@@ -596,6 +606,35 @@ function fitTree() {
   const scale = Math.min((W-pad*2)/cw, (H-pad*2)/ch, 1.6);
   svg.transition().duration(500).call(zoomBehavior.transform,
     d3.zoomIdentity.translate((W-cw*scale)/2-minX*scale, (H-ch*scale)/2-minY*scale).scale(scale));
+}
+
+// ============================================================
+// 3D MODE TOGGLE
+// ============================================================
+
+function toggle3DMode() {
+  state.mode3d = !state.mode3d;
+  const svgEl  = document.getElementById('tree-svg');
+  const hintEl = document.getElementById('hint-3d');
+  const btn    = document.getElementById('btn-3d-toggle');
+
+  if (state.mode3d) {
+    /* Switch to 3D: hide SVG, show Three.js canvas */
+    svgEl.style.display = 'none';
+    hintEl.classList.remove('hidden');
+    btn.classList.add('active');
+    btn.title = 'Back to 2D';
+    Tree3D.activate();
+  } else {
+    /* Switch back to 2D */
+    Tree3D.deactivate();
+    svgEl.style.display = '';
+    hintEl.classList.add('hidden');
+    btn.classList.remove('active');
+    btn.title = '3D Mode';
+    renderTree();
+    setTimeout(fitTree, 80);
+  }
 }
 
 // ============================================================
@@ -1216,8 +1255,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 1. Apply translations to static HTML
   i18n.applyTranslations();
 
-  // 2. Init D3 tree canvas
+  // 2. Init D3 tree canvas + Three.js renderer
   initTree();
+  Tree3D.init();
 
   // 3. Load data from server
   await initApp();
