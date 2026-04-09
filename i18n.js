@@ -76,6 +76,7 @@
       relTypeSpouse:        'Spouse',
       relTypeSibling:       'Sibling',
       searchPersonLabel:    'Search Person',
+      peopleList:           'People List',
       noMatchingPeople:     'No matching people',
       createAndLink:        'Create New Person & Link',
       // Import modal
@@ -201,6 +202,7 @@
       relTypeSpouse:        'Vợ/Chồng',
       relTypeSibling:       'Anh/Chị/Em',
       searchPersonLabel:    'Tìm Người',
+      peopleList:           'Danh Sách',
       noMatchingPeople:     'Không tìm thấy người phù hợp',
       createAndLink:        'Tạo Người Mới & Liên Kết',
       // Import modal

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Family Tree</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -72,6 +72,11 @@
 
       <!-- More dropdown (mobile) -->
       <div id="more-menu" class="more-menu hidden">
+        <button onclick="openPeopleList(); closeMoreMenu()">
+          <i class="fas fa-list"></i>
+          <span data-i18n="peopleList">People List</span>
+        </button>
+        <div class="more-menu-divider"></div>
         <button onclick="openImportModal(); closeMoreMenu()">
           <i class="fas fa-upload"></i>
           <span data-i18n="importBtn">Import</span>
@@ -142,6 +147,20 @@
   <button id="fab-add" class="fab" onclick="openAddPersonModal()">
     <i class="fas fa-user-plus"></i>
   </button>
+
+  <!-- Mobile: People list sheet -->
+  <div id="people-list-sheet" class="pls-sheet hidden">
+    <div class="pls-header">
+      <span data-i18n="peopleList">People List</span>
+      <button class="btn-icon" onclick="closePeopleList()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="pls-search-row">
+      <i class="fas fa-search pls-search-icon"></i>
+      <input type="text" id="pls-search" data-i18n-ph="phSearchName"
+        placeholder="Search…" oninput="renderPeopleList()" autocomplete="off">
+    </div>
+    <div id="pls-list" class="pls-list"></div>
+  </div>
 
   <!-- ============================
        MODAL: Manage Families

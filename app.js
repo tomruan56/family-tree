@@ -620,6 +620,7 @@ function renderSidebar() {
   }
   sidebar.classList.remove('hidden');
   if (overlay && isMobile()) overlay.classList.add('visible');
+  if (isMobile()) setTimeout(() => panToNode(state.selectedId), 50);
 
   const parents  = getParents(state.selectedId);
   const spouses  = getSpouses(state.selectedId);
@@ -1016,6 +1017,83 @@ function closeMoreMenu() {
 }
 
 // ============================================================
+// PEOPLE LIST SHEET  (mobile view)
+// ============================================================
+
+function openPeopleList() {
+  renderPeopleList();
+  document.getElementById('people-list-sheet').classList.remove('hidden');
+  setTimeout(() => document.getElementById('pls-search').focus(), 300);
+}
+
+function closePeopleList() {
+  document.getElementById('people-list-sheet').classList.add('hidden');
+}
+
+function renderPeopleList() {
+  const q      = (document.getElementById('pls-search').value || '').toLowerCase();
+  const people = getAllPeople()
+    .filter(p => !q || getDisplayName(p).toLowerCase().includes(q))
+    .sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)));
+
+  const container = document.getElementById('pls-list');
+  if (!people.length) {
+    container.innerHTML = `<div class="pls-empty">${i18n.t('noMatchingPeople')}</div>`;
+    return;
+  }
+
+  container.innerHTML = people.map(p => {
+    const gc   = GENDER_COLOR[p.gender] || GENDER_COLOR.unknown;
+    const name = getDisplayName(p);
+    const by   = year(p.birthDate), dy = year(p.deathDate);
+    const dates = by && dy ? `${by}–${dy}` : by ? `${i18n.t('bornAbbr')} ${by}` : dy ? `${i18n.t('diedAbbr')} ${dy}` : '';
+    const av   = p.photo
+      ? `<img src="${esc(p.photo)}" alt="">`
+      : `<div class="pls-avatar-ph" style="background:${gc}">${getInitials(p)}</div>`;
+    return `
+      <div class="pls-item" onclick="selectFromList('${p.id}')">
+        <div class="pls-avatar">${av}</div>
+        <div class="pls-info">
+          <div class="pls-name">${esc(name)}</div>
+          ${dates ? `<div class="pls-dates">${esc(dates)}</div>` : ''}
+        </div>
+        <i class="fas fa-chevron-right pls-chevron"></i>
+      </div>`;
+  }).join('');
+}
+
+function selectFromList(id) {
+  closePeopleList();
+  state.selectedId = id;
+  renderTree();
+  renderSidebar();
+  setTimeout(() => panToNode(id), 100);
+}
+
+// ============================================================
+// AUTO-PAN TO NODE  (mobile: keep node visible above sheet)
+// ============================================================
+
+function panToNode(id) {
+  if (!isMobile()) return;
+  const { nodes } = buildLayout();
+  const node = nodes.find(n => n.id === id);
+  if (!node) return;
+
+  const svgEl   = document.getElementById('tree-svg');
+  const W       = svgEl.clientWidth;
+  const H       = svgEl.clientHeight;
+  const visibleH = H * 0.26;   // visible strip above the ~78vh bottom sheet
+
+  const k  = d3.zoomTransform(svg.node()).k;
+  const tx = W / 2 - (node.x + NODE_W / 2) * k;
+  const ty = visibleH / 2 - (node.y + NODE_H / 2) * k;
+
+  svg.transition().duration(380)
+    .call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(k));
+}
+
+// ============================================================
 // LANGUAGE TOGGLE
 // ============================================================
 
@@ -1180,4 +1258,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const dy = e.changedTouches[0].clientY - _swipeStartY;
     if (dy > 72) closeSidebarMobile(); // swipe down ≥72px → close
   }, { passive: true });
+
+  // 9. Re-render tree on orientation change / window resize
+  let _resizeTimer;
+  const onResize = () => {
+    clearTimeout(_resizeTimer);
+    _resizeTimer = setTimeout(() => {
+      renderTree();
+      renderSidebar();
+      if (getAllPeople().length > 0) fitTree();
+    }, 150);
+  };
+  window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', () => setTimeout(onResize, 300));
 });
