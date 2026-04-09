@@ -7,7 +7,7 @@ const Tree3D = (() => {
   /* ── Mirror the 2D layout constants (globals from app.js) ─── */
   const DEPTH = 140;   // Z units between each generation layer
 
-  const TEX_W = 400, TEX_H = 152;   // 2× HiDPI canvas texture
+  const TEX_W = 400, TEX_H = 180;   // 2× HiDPI canvas texture (NODE_H 90 × 2)
 
   const GC = { male:'#3b82f6', female:'#ec4899', other:'#10b981', unknown:'#9ca3af' };
   const GB = { male:'#dbeafe', female:'#fce7f3', other:'#d1fae5', unknown:'#f3f4f6' };
@@ -91,21 +91,38 @@ const Tree3D = (() => {
     ctx.textBaseline = 'middle';
     ctx.fillText(ini, AX, AY);
 
-    /* Name */
-    const name = getDisplayName(person);
+    /* Name — wrap to two lines if long (mirrors 2D wrapName logic) */
+    const fullName = getDisplayName(person);
+    const lines    = wrapName(fullName);   // 1 or 2 elements
+
+    const by = year(person.birthDate), dy = year(person.deathDate);
+    const ds = by && dy ? `${by}–${dy}` : by ? `${i18n.t('bornAbbr')} ${by}` : '';
+
+    const MID = TEX_H / 2 + 4;   // 94 (avatar center)
+    const LINE_GAP = 30, DATE_GAP = 30;
+
     ctx.fillStyle    = '#1a1a2e';
     ctx.font         = 'bold 24px sans-serif';
     ctx.textAlign    = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(clip(name, 18), 124, TEX_H / 2 - 14);
 
-    /* Dates */
-    const by = year(person.birthDate), dy = year(person.deathDate);
-    const ds = by && dy ? `${by}–${dy}` : by ? `${i18n.t('bornAbbr')} ${by}` : '';
-    if (ds) {
-      ctx.fillStyle = '#9ca3af';
-      ctx.font      = '20px sans-serif';
-      ctx.fillText(ds, 124, TEX_H / 2 + 18);
+    if (lines.length === 2) {
+      const topY = ds ? MID - LINE_GAP : MID - LINE_GAP / 2;
+      ctx.fillText(lines[0], 124, topY);
+      ctx.fillText(lines[1], 124, topY + LINE_GAP);
+      if (ds) {
+        ctx.fillStyle = '#9ca3af';
+        ctx.font      = '20px sans-serif';
+        ctx.fillText(ds, 124, topY + LINE_GAP + DATE_GAP);
+      }
+    } else {
+      const nameY = ds ? MID - 15 : MID;
+      ctx.fillText(lines[0], 124, nameY);
+      if (ds) {
+        ctx.fillStyle = '#9ca3af';
+        ctx.font      = '20px sans-serif';
+        ctx.fillText(ds, 124, nameY + DATE_GAP);
+      }
     }
 
     return new THREE.CanvasTexture(c);

@@ -332,7 +332,7 @@ function hideWelcomeScreen() {
 // LAYOUT ENGINE
 // ============================================================
 
-const NODE_W = 200, NODE_H = 76, H_GAP = 36, V_GAP = 90;
+const NODE_W = 200, NODE_H = 90, H_GAP = 36, V_GAP = 90;
 
 function buildLayout() {
   const people = getAllPeople();
@@ -547,14 +547,38 @@ function drawPersonNode(container, person) {
   }
 
   const fullName = getDisplayName(person);
-  g.append('text').attr('x',62).attr('y',NODE_H/2-7).attr('font-size','12.5px')
-    .attr('font-weight','600').attr('fill','#1a1a2e').attr('font-family','Inter,sans-serif')
-    .text(clip(fullName,20));
-
+  const lines    = wrapName(fullName);  // 1 or 2 elements
   const by = year(person.birthDate), dy = year(person.deathDate);
   const ds = by&&dy ? `${by}–${dy}` : by ? `${i18n.t('bornAbbr')} ${by}` : dy ? `${i18n.t('diedAbbr')} ${dy}` : '';
-  if (ds) g.append('text').attr('x',62).attr('y',NODE_H/2+10).attr('font-size','11px')
-    .attr('fill','#9ca3af').attr('font-family','Inter,sans-serif').text(ds);
+
+  // Vertical layout (NODE_H = 90, mid = 47):
+  //   2 lines + dates  → line1 @ 32, line2 @ 47, dates @ 62
+  //   2 lines, no dates→ line1 @ 40, line2 @ 55
+  //   1 line  + dates  → name  @ 40, dates @ 55
+  //   1 line,  no dates→ name  @ 47
+  const MID = NODE_H / 2 + 2;  // = 47
+  const LINE_GAP = 15, DATE_GAP = 15;
+
+  if (lines.length === 2) {
+    const topY = ds ? MID - LINE_GAP : MID - LINE_GAP / 2;
+    g.append('text').attr('x',62).attr('y', topY)
+      .attr('font-size','12.5px').attr('font-weight','600')
+      .attr('fill','#1a1a2e').attr('font-family','Inter,sans-serif').text(lines[0]);
+    g.append('text').attr('x',62).attr('y', topY + LINE_GAP)
+      .attr('font-size','12.5px').attr('font-weight','600')
+      .attr('fill','#1a1a2e').attr('font-family','Inter,sans-serif').text(lines[1]);
+    if (ds) g.append('text').attr('x',62).attr('y', topY + LINE_GAP + DATE_GAP)
+      .attr('font-size','11px').attr('fill','#9ca3af')
+      .attr('font-family','Inter,sans-serif').text(ds);
+  } else {
+    const nameY = ds ? MID - 8 : MID;
+    g.append('text').attr('x',62).attr('y', nameY)
+      .attr('font-size','12.5px').attr('font-weight','600')
+      .attr('fill','#1a1a2e').attr('font-family','Inter,sans-serif').text(lines[0]);
+    if (ds) g.append('text').attr('x',62).attr('y', nameY + DATE_GAP)
+      .attr('font-size','11px').attr('fill','#9ca3af')
+      .attr('font-family','Inter,sans-serif').text(ds);
+  }
 
   if (person.deathDate) g.append('text').attr('x',NODE_W-8).attr('y',NODE_H-7)
     .attr('text-anchor','end').attr('font-size','11px').attr('fill','#c8ccd8').text('†');
@@ -1191,6 +1215,34 @@ function esc(s) {
 }
 
 function clip(s, max) { return s&&s.length>max ? s.slice(0,max-1)+'…' : (s||''); }
+
+// Split a long name into [line1, line2] at a word boundary near the middle.
+// Returns a 1-element array when the name fits on one line.
+function wrapName(name, maxPerLine = 18) {
+  if (!name || name.length <= maxPerLine) return [name || ''];
+  // Search outward from the midpoint for the nearest space
+  const mid = Math.floor(name.length / 2);
+  for (let r = 0; r <= mid; r++) {
+    if (mid - r > 0 && name[mid - r] === ' ') {
+      const l1 = name.slice(0, mid - r);
+      const l2 = name.slice(mid - r + 1);
+      return [
+        l1.length > maxPerLine ? l1.slice(0, maxPerLine - 1) + '…' : l1,
+        l2.length > maxPerLine ? l2.slice(0, maxPerLine - 1) + '…' : l2,
+      ];
+    }
+    if (mid + r < name.length - 1 && name[mid + r] === ' ') {
+      const l1 = name.slice(0, mid + r);
+      const l2 = name.slice(mid + r + 1);
+      return [
+        l1.length > maxPerLine ? l1.slice(0, maxPerLine - 1) + '…' : l1,
+        l2.length > maxPerLine ? l2.slice(0, maxPerLine - 1) + '…' : l2,
+      ];
+    }
+  }
+  // No space found — hard-split
+  return [name.slice(0, maxPerLine), name.slice(maxPerLine, maxPerLine * 2)];
+}
 
 // dd/mm/yyyy ↔ yyyy-mm-dd conversions
 function isoToDmy(iso) {
