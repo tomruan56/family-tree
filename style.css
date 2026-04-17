@@ -357,7 +357,9 @@ main {
 }
 #tree-controls button:hover { background: #f5f5f8; }
 
-/* 3D toggle active state */
+/* 3D toggle — hidden for now */
+#btn-3d-toggle, .tree-ctrl-divider { display: none; }
+
 #btn-3d-toggle.active {
   background: #1a1a2e;
   color: #fff;
