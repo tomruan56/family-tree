@@ -180,8 +180,30 @@ function addRelationship(type, sourceId, targetId) {
 function openFamiliesModal() {
   renderFamiliesList();
   document.getElementById('new-family-name').value = '';
+  document.getElementById('sync-your-id').value = getDeviceId();
+  document.getElementById('sync-paste-id').value = '';
   openModal('modal-families');
   setTimeout(() => document.getElementById('new-family-name').focus(), 80);
+}
+
+function copyDeviceId() {
+  const id = getDeviceId();
+  navigator.clipboard.writeText(id)
+    .then(() => showToast(i18n.t('toastIdCopied'), 'success'))
+    .catch(() => document.getElementById('sync-your-id').select());
+}
+
+function syncWithDeviceId() {
+  const input = document.getElementById('sync-paste-id');
+  const id    = input.value.trim();
+  if (!/^[a-zA-Z0-9_-]{4,}$/.test(id)) {
+    showToast(i18n.t('toastSyncInvalid'), 'error');
+    return;
+  }
+  if (id === getDeviceId()) return; // already on this device ID
+  if (!confirm(i18n.t('confirmSync', id))) return;
+  localStorage.setItem(DEVICE_KEY, id);
+  location.reload();
 }
 
 function renderFamiliesList() {

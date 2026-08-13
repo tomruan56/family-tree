@@ -195,6 +195,40 @@
         </div>
         <!-- Families list -->
         <div id="families-list"></div>
+
+        <!-- Sync across devices -->
+        <div class="sync-section">
+          <div class="sync-section-title">
+            <i class="fas fa-sync-alt"></i>
+            <span data-i18n="syncTitle">Sync Across Devices</span>
+          </div>
+          <p class="sync-desc" data-i18n="syncDesc">
+            This app has no login — each browser is identified by a private device ID.
+            Copy yours into another browser, or paste one here to switch this browser to that data.
+          </p>
+          <div class="form-group">
+            <label data-i18n="syncYourIdLabel">Your device ID</label>
+            <div class="sync-id-row">
+              <input type="text" id="sync-your-id" readonly>
+              <button class="btn btn-secondary btn-sm" onclick="copyDeviceId()">
+                <i class="fas fa-copy"></i>
+                <span data-i18n="btnCopy">Copy</span>
+              </button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label data-i18n="syncPasteLabel">Switch to another device ID</label>
+            <div class="sync-id-row">
+              <input type="text" id="sync-paste-id"
+                data-i18n-ph="phDeviceId" placeholder="Paste device ID…"
+                onkeydown="if(event.key==='Enter') syncWithDeviceId()">
+              <button class="btn btn-primary btn-sm" onclick="syncWithDeviceId()">
+                <i class="fas fa-right-left"></i>
+                <span data-i18n="btnSync">Sync</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

@@ -235,6 +235,46 @@ header h1 {
 .btn-icon-danger:hover { background: #fff0f0; color: #b02a37; }
 .families-empty { text-align: center; color: #bbb; font-size: 0.85rem; padding: 20px 0; }
 
+/* Sync across devices */
+.sync-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f5;
+}
+.sync-section-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 6px;
+}
+.sync-section-title i { color: #2d6a4f; }
+.sync-desc {
+  font-size: 0.78rem;
+  color: #888;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+.sync-id-row { display: flex; gap: 8px; }
+.sync-id-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid #dde0ea;
+  border-radius: 7px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  outline: none;
+  color: #1a1a2e;
+}
+.sync-id-row input:focus {
+  border-color: #2d6a4f;
+  box-shadow: 0 0 0 3px rgba(45,106,79,0.12);
+}
+#sync-your-id { background: #f7f7fa; color: #666; }
+
 /* ============================================================
    Buttons
    ============================================================ */
