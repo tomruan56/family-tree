@@ -357,8 +357,10 @@ main {
 }
 #tree-controls button:hover { background: #f5f5f8; }
 
-/* 3D toggle — hidden for now */
-#btn-3d-toggle, .tree-ctrl-divider { display: none; }
+/* 3D toggle — hidden for now (!important needed: #tree-controls button
+   sets display:flex with equal specificity, so plain display:none loses
+   the cascade tie and the button stays visible) */
+#btn-3d-toggle, .tree-ctrl-divider { display: none !important; }
 
 #btn-3d-toggle.active {
   background: #1a1a2e;
