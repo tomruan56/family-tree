@@ -102,6 +102,18 @@ function asyncHandler(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 }
 
+// ── Health / storage-backend diagnostic ────────────────────────
+// Reports which storage backend is actually active, so this can be checked
+// remotely (e.g. via browser fetch) instead of relying on dashboard logs.
+app.get('/api/health', asyncHandler(async (req, res) => {
+  const col = await getCollection();
+  res.json({
+    storage: col ? 'mongodb' : 'local-json-file',
+    mongoConfigured: Boolean(process.env.MONGODB_URI),
+    mongoFailed: _mongoFailed,
+  });
+}));
+
 // ── Image upload endpoint ─────────────────────────────────────
 
 app.post('/api/upload', deviceId, upload.single('photo'), (req, res) => {
