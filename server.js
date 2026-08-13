@@ -14,17 +14,25 @@ if (!fs.existsSync(IMGS_DIR))  fs.mkdirSync(IMGS_DIR, { recursive: true });
 
 // ── MongoDB (production) vs JSON files (local) ────────────────
 let _mongoCollection = null;
+let _mongoFailed = false; // once true, stop retrying and use file storage for the rest of this run
 
 async function getCollection() {
   if (_mongoCollection) return _mongoCollection;
+  if (_mongoFailed) return null;
   const uri = process.env.MONGODB_URI;
   if (!uri) return null;
   const { MongoClient } = require('mongodb');
-  const client = new MongoClient(uri);
-  await client.connect();
-  _mongoCollection = client.db('familytree').collection('devices');
-  console.log('[DB] Connected to MongoDB Atlas');
-  return _mongoCollection;
+  try {
+    const client = new MongoClient(uri, { serverSelectionTimeoutMS: 5000 });
+    await client.connect();
+    _mongoCollection = client.db('familytree').collection('devices');
+    console.log('[DB] Connected to MongoDB Atlas');
+    return _mongoCollection;
+  } catch (err) {
+    _mongoFailed = true;
+    console.error('[DB] MongoDB connection failed, falling back to local JSON storage:', err.message);
+    return null;
+  }
 }
 
 // Multer: store uploaded images in data/images/, keep original extension
@@ -88,6 +96,12 @@ function deviceId(req, res, next) {
   next();
 }
 
+// Wraps an async route handler so a thrown/rejected error becomes a JSON 500
+// instead of hanging the request until Render's proxy times out with a bare 502.
+function asyncHandler(fn) {
+  return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+}
+
 // ── Image upload endpoint ─────────────────────────────────────
 
 app.post('/api/upload', deviceId, upload.single('photo'), (req, res) => {
@@ -99,14 +113,14 @@ app.use('/data/images', express.static(IMGS_DIR));
 
 // ── Family endpoints ──────────────────────────────────────────
 
-app.get('/api/families', deviceId, async (req, res) => {
+app.get('/api/families', deviceId, asyncHandler(async (req, res) => {
   const data = await readDevice(req.deviceId);
   const list = Object.values(data.families).map(({ id, name, createdAt }) => ({ id, name, createdAt }));
   list.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
   res.json(list);
-});
+}));
 
-app.post('/api/families', deviceId, async (req, res) => {
+app.post('/api/families', deviceId, asyncHandler(async (req, res) => {
   const { id, name, createdAt } = req.body || {};
   if (!id || !name?.trim()) return res.status(400).json({ error: 'id and name required' });
   const data = await readDevice(req.deviceId);
@@ -114,9 +128,9 @@ app.post('/api/families', deviceId, async (req, res) => {
   data.families[id] = { id, name: name.trim(), createdAt: createdAt || new Date().toISOString(), people: {} };
   await writeDevice(req.deviceId, data);
   res.json({ id, name: name.trim(), createdAt: data.families[id].createdAt });
-});
+}));
 
-app.put('/api/families/:id', deviceId, async (req, res) => {
+app.put('/api/families/:id', deviceId, asyncHandler(async (req, res) => {
   const { name } = req.body || {};
   if (!name?.trim()) return res.status(400).json({ error: 'Name required' });
   const data = await readDevice(req.deviceId);
@@ -124,32 +138,39 @@ app.put('/api/families/:id', deviceId, async (req, res) => {
   data.families[req.params.id].name = name.trim();
   await writeDevice(req.deviceId, data);
   res.json({ ok: true });
-});
+}));
 
-app.delete('/api/families/:id', deviceId, async (req, res) => {
+app.delete('/api/families/:id', deviceId, asyncHandler(async (req, res) => {
   const data = await readDevice(req.deviceId);
   if (!data.families[req.params.id]) return res.status(404).json({ error: 'Not found' });
   delete data.families[req.params.id];
   await writeDevice(req.deviceId, data);
   res.json({ ok: true });
-});
+}));
 
 // ── People data endpoints ─────────────────────────────────────
 
-app.get('/api/families/:id/people', deviceId, async (req, res) => {
+app.get('/api/families/:id/people', deviceId, asyncHandler(async (req, res) => {
   const data   = await readDevice(req.deviceId);
   const family = data.families[req.params.id];
   if (!family) return res.status(404).json({ error: 'Not found' });
   res.json(family.people || {});
-});
+}));
 
-app.put('/api/families/:id/people', deviceId, async (req, res) => {
+app.put('/api/families/:id/people', deviceId, asyncHandler(async (req, res) => {
   const data   = await readDevice(req.deviceId);
   const family = data.families[req.params.id];
   if (!family) return res.status(404).json({ error: 'Not found' });
   family.people = req.body;
   await writeDevice(req.deviceId, data);
   res.json({ ok: true });
+}));
+
+// ── Error handler (catches anything asyncHandler passes to next()) ────
+app.use((err, req, res, next) => {
+  console.error('[API] Unhandled route error:', err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 // ── Start ─────────────────────────────────────────────────────
