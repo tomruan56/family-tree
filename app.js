@@ -6,9 +6,9 @@
 // STORAGE KEYS
 // ============================================================
 
-const CURRENT_KEY  = 'familytree_current';   // id of the active family
-const DEVICE_KEY   = 'familytree_device_id'; // anonymous device identifier
-const AUTH_KEY     = 'familytree_auth_token'; // session token when login is enabled
+const CURRENT_KEY  = 'familytree_current';    // id of the active family
+const AUTH_KEY     = 'familytree_auth_token'; // account session token
+const AUTH_EMAIL_KEY = 'familytree_auth_email'; // logged-in email, for display only
 
 // ============================================================
 // STATE
@@ -22,70 +22,98 @@ const state = {
   mode3d:          false,
 };
 
-// ── Device ID: stable anonymous identifier stored in localStorage ──
-function getDeviceId() {
-  let id = localStorage.getItem(DEVICE_KEY);
-  if (!id) {
-    id = 'd_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-    localStorage.setItem(DEVICE_KEY, id);
-  }
-  return id;
-}
-
-// ── Auth: shared family password gate (optional, server-controlled) ──
+// ── Auth: per-account email + password login ──
 function getAuthToken() { return localStorage.getItem(AUTH_KEY); }
+function getAuthEmail() { return localStorage.getItem(AUTH_EMAIL_KEY) || ''; }
+
+let _authMode = 'login'; // 'login' | 'register'
 
 function showLoginScreen() {
+  _authMode = 'login';
+  applyAuthMode();
   document.getElementById('login-error').textContent = '';
-  document.getElementById('login-password').value = '';
+  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-password').value = '';
+  document.getElementById('auth-password-confirm').value = '';
   document.getElementById('login-overlay').classList.remove('hidden');
-  setTimeout(() => document.getElementById('login-password').focus(), 80);
+  setTimeout(() => document.getElementById('auth-email').focus(), 80);
 }
 
 function hideLoginScreen() {
   document.getElementById('login-overlay').classList.add('hidden');
 }
 
-async function submitLogin() {
-  const input    = document.getElementById('login-password');
-  const errorEl  = document.getElementById('login-error');
-  const password = input.value;
+function toggleAuthMode() {
+  _authMode = _authMode === 'login' ? 'register' : 'login';
+  applyAuthMode();
+}
+
+function applyAuthMode() {
+  const isRegister = _authMode === 'register';
+  document.getElementById('auth-title').textContent = i18n.t(isRegister ? 'registerTitle' : 'loginTitle');
+  document.getElementById('auth-desc').textContent  = i18n.t(isRegister ? 'registerDesc'  : 'loginDesc');
+  document.getElementById('auth-submit-label').textContent = i18n.t(isRegister ? 'btnRegister' : 'btnLogin');
+  document.getElementById('auth-toggle-question').textContent = i18n.t(isRegister ? 'registerToggleQuestion' : 'loginToggleQuestion');
+  document.getElementById('auth-toggle-link').textContent     = i18n.t(isRegister ? 'registerToggleAction'   : 'loginToggleAction');
+  document.getElementById('auth-password-confirm').classList.toggle('hidden', !isRegister);
+  document.getElementById('login-error').textContent = '';
+}
+
+async function submitAuth() {
+  const errorEl   = document.getElementById('login-error');
+  const email     = document.getElementById('auth-email').value.trim();
+  const password  = document.getElementById('auth-password').value;
+  const confirm   = document.getElementById('auth-password-confirm').value;
+  const isRegister = _authMode === 'register';
   errorEl.textContent = '';
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errorEl.textContent = i18n.t('loginErrorInvalidEmail'); return; }
+  if (isRegister) {
+    if (password.length < 6) { errorEl.textContent = i18n.t('loginErrorPasswordLen'); return; }
+    if (password !== confirm) { errorEl.textContent = i18n.t('loginErrorPasswordMismatch'); return; }
+  }
+
   let res;
   try {
-    res = await fetch('/api/login', {
+    res = await fetch(isRegister ? '/api/register' : '/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ email, password }),
     });
   } catch {
     errorEl.textContent = i18n.t('loginErrorGeneric');
     return;
   }
+
   if (res.status === 429) { errorEl.textContent = i18n.t('loginErrorRateLimited'); return; }
   if (!res.ok) {
-    errorEl.textContent = i18n.t('loginErrorWrong');
-    input.value = '';
-    input.focus();
+    const body = await res.json().catch(() => ({}));
+    errorEl.textContent = /already exists/i.test(body.error || '')
+      ? i18n.t('loginErrorEmailTaken')
+      : isRegister ? (body.error || i18n.t('loginErrorGeneric')) : i18n.t('loginErrorWrongCreds');
     return;
   }
-  const { token } = await res.json();
-  if (token) localStorage.setItem(AUTH_KEY, token);
+
+  const { token, email: confirmedEmail } = await res.json();
+  localStorage.setItem(AUTH_KEY, token);
+  localStorage.setItem(AUTH_EMAIL_KEY, confirmedEmail || email);
   hideLoginScreen();
   await initApp();
 }
 
-// Checks whether the server requires login; shows the login screen and
-// returns false if so (caller should not proceed to initApp() yet).
-async function ensureAuthenticated() {
-  let health;
-  try {
-    health = await fetch('/api/health').then(r => r.json());
-  } catch {
-    return true; // can't reach server yet — let initApp()'s own fetch surface the error
-  }
-  if (!health.authRequired) return true;
-  if (getAuthToken()) return true; // optimistic — a stale/invalid token is caught by apiFetch's 401 handling
+function logout() {
+  localStorage.removeItem(AUTH_KEY);
+  localStorage.removeItem(AUTH_EMAIL_KEY);
+  localStorage.removeItem(CURRENT_KEY);
+  closeModal('modal-families');
+  showLoginScreen();
+}
+
+// Shows the login screen and returns false if there's no stored session yet
+// (caller should not proceed to initApp() until submitAuth() succeeds).
+// A stale/invalid stored token is caught later by apiFetch's 401 handling.
+function ensureAuthenticated() {
+  if (getAuthToken()) return true;
   showLoginScreen();
   return false;
 }
@@ -101,7 +129,6 @@ async function apiFetch(path, options = {}) {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        'X-Device-Id': getDeviceId(),
         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...(options.headers || {}),
       },
@@ -246,30 +273,9 @@ function addRelationship(type, sourceId, targetId) {
 function openFamiliesModal() {
   renderFamiliesList();
   document.getElementById('new-family-name').value = '';
-  document.getElementById('sync-your-id').value = getDeviceId();
-  document.getElementById('sync-paste-id').value = '';
+  document.getElementById('account-email-text').textContent = getAuthEmail();
   openModal('modal-families');
   setTimeout(() => document.getElementById('new-family-name').focus(), 80);
-}
-
-function copyDeviceId() {
-  const id = getDeviceId();
-  navigator.clipboard.writeText(id)
-    .then(() => showToast(i18n.t('toastIdCopied'), 'success'))
-    .catch(() => document.getElementById('sync-your-id').select());
-}
-
-function syncWithDeviceId() {
-  const input = document.getElementById('sync-paste-id');
-  const id    = input.value.trim();
-  if (!/^[a-zA-Z0-9_-]{4,}$/.test(id)) {
-    showToast(i18n.t('toastSyncInvalid'), 'error');
-    return;
-  }
-  if (id === getDeviceId()) return; // already on this device ID
-  if (!confirm(i18n.t('confirmSync', id))) return;
-  localStorage.setItem(DEVICE_KEY, id);
-  location.reload();
 }
 
 function renderFamiliesList() {
@@ -898,7 +904,6 @@ async function handlePhotoUpload(event) {
     const res = await fetch('/api/upload', {
       method: 'POST',
       headers: {
-        'X-Device-Id': getDeviceId(),
         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       },
       body: formData,

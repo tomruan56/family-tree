@@ -16,25 +16,31 @@
 <body>
 
   <!-- ============================
-       LOGIN OVERLAY
-       (shown when the server requires a password)
+       LOGIN / REGISTER OVERLAY
+       (shown until the browser has a valid account session)
        ============================ -->
   <div id="login-overlay" class="hidden">
     <div class="welcome-card">
-      <i class="fas fa-lock welcome-icon"></i>
-      <h2 data-i18n="loginTitle">Family Tree</h2>
-      <p data-i18n="loginDesc">Enter the family password to continue</p>
-      <div class="welcome-form">
-        <input type="password" id="login-password"
-          data-i18n-ph="phPassword" placeholder="Password"
-          autocomplete="current-password"
-          onkeydown="if(event.key==='Enter') submitLogin()">
-        <button class="btn btn-primary" onclick="submitLogin()">
+      <i class="fas fa-tree welcome-icon"></i>
+      <h2 id="auth-title" data-i18n="loginTitle">Log In</h2>
+      <p id="auth-desc" data-i18n="loginDesc">Log in to see your family tree</p>
+      <form id="auth-form" class="auth-form" onsubmit="return false" onkeydown="if(event.key==='Enter') submitAuth()">
+        <input type="email" id="auth-email"
+          data-i18n-ph="phEmail" placeholder="Email" autocomplete="username">
+        <input type="password" id="auth-password"
+          data-i18n-ph="phPassword" placeholder="Password" autocomplete="current-password">
+        <input type="password" id="auth-password-confirm" class="hidden"
+          data-i18n-ph="phPasswordConfirm" placeholder="Confirm password" autocomplete="new-password">
+        <button type="button" class="btn btn-primary" onclick="submitAuth()">
           <i class="fas fa-arrow-right"></i>
-          <span data-i18n="btnLogin">Log In</span>
+          <span id="auth-submit-label" data-i18n="btnLogin">Log In</span>
         </button>
-      </div>
+      </form>
       <p id="login-error" class="login-error"></p>
+      <p class="auth-toggle">
+        <span id="auth-toggle-question" data-i18n="loginToggleQuestion">Don't have an account?</span>
+        <a href="#" id="auth-toggle-link" onclick="toggleAuthMode(); return false" data-i18n="loginToggleAction">Sign up</a>
+      </p>
     </div>
   </div>
 
@@ -219,38 +225,13 @@
         <!-- Families list -->
         <div id="families-list"></div>
 
-        <!-- Sync across devices -->
-        <div class="sync-section">
-          <div class="sync-section-title">
-            <i class="fas fa-sync-alt"></i>
-            <span data-i18n="syncTitle">Sync Across Devices</span>
-          </div>
-          <p class="sync-desc" data-i18n="syncDesc">
-            This app has no login — each browser is identified by a private device ID.
-            Copy yours into another browser, or paste one here to switch this browser to that data.
-          </p>
-          <div class="form-group">
-            <label data-i18n="syncYourIdLabel">Your device ID</label>
-            <div class="sync-id-row">
-              <input type="text" id="sync-your-id" readonly>
-              <button class="btn btn-secondary btn-sm" onclick="copyDeviceId()">
-                <i class="fas fa-copy"></i>
-                <span data-i18n="btnCopy">Copy</span>
-              </button>
-            </div>
-          </div>
-          <div class="form-group">
-            <label data-i18n="syncPasteLabel">Switch to another device ID</label>
-            <div class="sync-id-row">
-              <input type="text" id="sync-paste-id"
-                data-i18n-ph="phDeviceId" placeholder="Paste device ID…"
-                onkeydown="if(event.key==='Enter') syncWithDeviceId()">
-              <button class="btn btn-primary btn-sm" onclick="syncWithDeviceId()">
-                <i class="fas fa-right-left"></i>
-                <span data-i18n="btnSync">Sync</span>
-              </button>
-            </div>
-          </div>
+        <!-- Account -->
+        <div class="account-section">
+          <div class="account-email"><i class="fas fa-user-circle"></i> <span id="account-email-text"></span></div>
+          <button class="btn btn-secondary btn-sm" onclick="logout()">
+            <i class="fas fa-right-from-bracket"></i>
+            <span data-i18n="btnLogout">Log Out</span>
+          </button>
         </div>
       </div>
     </div>
