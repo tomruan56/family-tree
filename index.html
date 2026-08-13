@@ -16,6 +16,29 @@
 <body>
 
   <!-- ============================
+       LOGIN OVERLAY
+       (shown when the server requires a password)
+       ============================ -->
+  <div id="login-overlay" class="hidden">
+    <div class="welcome-card">
+      <i class="fas fa-lock welcome-icon"></i>
+      <h2 data-i18n="loginTitle">Family Tree</h2>
+      <p data-i18n="loginDesc">Enter the family password to continue</p>
+      <div class="welcome-form">
+        <input type="password" id="login-password"
+          data-i18n-ph="phPassword" placeholder="Password"
+          autocomplete="current-password"
+          onkeydown="if(event.key==='Enter') submitLogin()">
+        <button class="btn btn-primary" onclick="submitLogin()">
+          <i class="fas fa-arrow-right"></i>
+          <span data-i18n="btnLogin">Log In</span>
+        </button>
+      </div>
+      <p id="login-error" class="login-error"></p>
+    </div>
+  </div>
+
+  <!-- ============================
        WELCOME OVERLAY
        (shown when no families exist)
        ============================ -->

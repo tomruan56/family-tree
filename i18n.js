@@ -8,6 +8,14 @@
     en: {
       // App
       appTitle:             'Family Tree',
+      // Login
+      loginTitle:            'Family Tree',
+      loginDesc:              'Enter the family password to continue',
+      phPassword:             'Password',
+      btnLogin:               'Log In',
+      loginErrorWrong:        'Incorrect password',
+      loginErrorRateLimited:  'Too many attempts — try again later',
+      loginErrorGeneric:      'Could not log in — try again',
       // Header
       addPerson:            'Add Person',
       importBtn:            'Import',
@@ -145,6 +153,14 @@
     vi: {
       // App
       appTitle:             'Quản lý Gia Phả',
+      // Login
+      loginTitle:            'Quản lý Gia Phả',
+      loginDesc:              'Nhập mật khẩu gia đình để tiếp tục',
+      phPassword:             'Mật khẩu',
+      btnLogin:               'Đăng Nhập',
+      loginErrorWrong:        'Sai mật khẩu',
+      loginErrorRateLimited:  'Thử quá nhiều lần — vui lòng thử lại sau',
+      loginErrorGeneric:      'Không thể đăng nhập — vui lòng thử lại',
       // Header
       addPerson:            'Thêm Người',
       importBtn:            'Nhập',

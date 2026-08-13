@@ -107,7 +107,7 @@ header h1 {
 /* ============================================================
    Welcome Overlay
    ============================================================ */
-#welcome-overlay {
+#welcome-overlay, #login-overlay {
   position: fixed;
   inset: 0;
   background: #f0f2f5;
@@ -116,7 +116,15 @@ header h1 {
   justify-content: center;
   z-index: 300;
 }
-#welcome-overlay.hidden { display: none; }
+#login-overlay { z-index: 400; } /* above the welcome overlay: login gates everything */
+#welcome-overlay.hidden, #login-overlay.hidden { display: none; }
+
+.login-error {
+  color: #dc3545;
+  font-size: 0.82rem;
+  margin-top: 14px;
+  min-height: 1em;
+}
 
 .welcome-card {
   background: #fff;

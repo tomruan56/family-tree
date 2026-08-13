@@ -2,6 +2,7 @@ const express = require('express');
 const fs      = require('fs');
 const path    = require('path');
 const multer  = require('multer');
+const crypto  = require('crypto');
 
 const app       = express();
 const PORT      = process.env.PORT || 3000;
@@ -102,6 +103,59 @@ function asyncHandler(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 }
 
+// ── Login gate (single shared family password) ─────────────────
+// Set APP_PASSWORD in the environment to require login before any data can
+// be read or written. If it's unset, the app behaves as before (open access).
+// Sessions are stateless signed tokens (no server-side session store needed,
+// so logins survive restarts/redeploys as long as APP_PASSWORD doesn't change).
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+function timingSafeStringEqual(a, b) {
+  const ha = crypto.createHash('sha256').update(String(a)).digest();
+  const hb = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(ha, hb);
+}
+
+function makeSessionToken() {
+  const exp = Date.now() + SESSION_TTL_MS;
+  const sig = crypto.createHmac('sha256', process.env.APP_PASSWORD).update(String(exp)).digest('hex');
+  return `${exp}.${sig}`;
+}
+
+function verifySessionToken(token) {
+  if (typeof token !== 'string') return false;
+  const [expStr, sig] = token.split('.');
+  const exp = Number(expStr);
+  if (!exp || !sig || Date.now() > exp) return false;
+  const expected = crypto.createHmac('sha256', process.env.APP_PASSWORD).update(expStr).digest('hex');
+  return timingSafeStringEqual(sig, expected);
+}
+
+// Basic in-memory rate limit for login attempts (per IP): resets on restart,
+// which is fine here — the goal is slowing down brute force, not perfect accounting.
+const _loginAttempts = new Map(); // ip -> { count, resetAt }
+const LOGIN_LIMIT_MAX    = 10;
+const LOGIN_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+
+function loginRateLimited(ip) {
+  const now = Date.now();
+  const entry = _loginAttempts.get(ip);
+  if (!entry || now > entry.resetAt) {
+    _loginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_LIMIT_WINDOW });
+    return false;
+  }
+  entry.count += 1;
+  return entry.count > LOGIN_LIMIT_MAX;
+}
+
+function requireAuth(req, res, next) {
+  if (!process.env.APP_PASSWORD) return next(); // login disabled
+  const header = req.headers['authorization'] || '';
+  const token  = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!verifySessionToken(token)) return res.status(401).json({ error: 'Login required' });
+  next();
+}
+
 // ── Health / storage-backend diagnostic ────────────────────────
 // Reports which storage backend is actually active, so this can be checked
 // remotely (e.g. via browser fetch) instead of relying on dashboard logs.
@@ -111,12 +165,25 @@ app.get('/api/health', asyncHandler(async (req, res) => {
     storage: col ? 'mongodb' : 'local-json-file',
     mongoConfigured: Boolean(process.env.MONGODB_URI),
     mongoFailed: _mongoFailed,
+    authRequired: Boolean(process.env.APP_PASSWORD),
   });
+}));
+
+// ── Login ────────────────────────────────────────────────────
+app.post('/api/login', asyncHandler(async (req, res) => {
+  if (!process.env.APP_PASSWORD) return res.json({ token: null }); // login disabled
+  const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  if (loginRateLimited(ip)) return res.status(429).json({ error: 'Too many attempts, try again later' });
+  const { password } = req.body || {};
+  if (typeof password !== 'string' || !timingSafeStringEqual(password, process.env.APP_PASSWORD)) {
+    return res.status(401).json({ error: 'Incorrect password' });
+  }
+  res.json({ token: makeSessionToken() });
 }));
 
 // ── Image upload endpoint ─────────────────────────────────────
 
-app.post('/api/upload', deviceId, upload.single('photo'), (req, res) => {
+app.post('/api/upload', requireAuth, deviceId, upload.single('photo'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   res.json({ url: `/data/images/${req.file.filename}` });
 });
@@ -125,14 +192,14 @@ app.use('/data/images', express.static(IMGS_DIR));
 
 // ── Family endpoints ──────────────────────────────────────────
 
-app.get('/api/families', deviceId, asyncHandler(async (req, res) => {
+app.get('/api/families', requireAuth, deviceId, asyncHandler(async (req, res) => {
   const data = await readDevice(req.deviceId);
   const list = Object.values(data.families).map(({ id, name, createdAt }) => ({ id, name, createdAt }));
   list.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
   res.json(list);
 }));
 
-app.post('/api/families', deviceId, asyncHandler(async (req, res) => {
+app.post('/api/families', requireAuth, deviceId, asyncHandler(async (req, res) => {
   const { id, name, createdAt } = req.body || {};
   if (!id || !name?.trim()) return res.status(400).json({ error: 'id and name required' });
   const data = await readDevice(req.deviceId);
@@ -142,7 +209,7 @@ app.post('/api/families', deviceId, asyncHandler(async (req, res) => {
   res.json({ id, name: name.trim(), createdAt: data.families[id].createdAt });
 }));
 
-app.put('/api/families/:id', deviceId, asyncHandler(async (req, res) => {
+app.put('/api/families/:id', requireAuth, deviceId, asyncHandler(async (req, res) => {
   const { name } = req.body || {};
   if (!name?.trim()) return res.status(400).json({ error: 'Name required' });
   const data = await readDevice(req.deviceId);
@@ -152,7 +219,7 @@ app.put('/api/families/:id', deviceId, asyncHandler(async (req, res) => {
   res.json({ ok: true });
 }));
 
-app.delete('/api/families/:id', deviceId, asyncHandler(async (req, res) => {
+app.delete('/api/families/:id', requireAuth, deviceId, asyncHandler(async (req, res) => {
   const data = await readDevice(req.deviceId);
   if (!data.families[req.params.id]) return res.status(404).json({ error: 'Not found' });
   delete data.families[req.params.id];
@@ -162,14 +229,14 @@ app.delete('/api/families/:id', deviceId, asyncHandler(async (req, res) => {
 
 // ── People data endpoints ─────────────────────────────────────
 
-app.get('/api/families/:id/people', deviceId, asyncHandler(async (req, res) => {
+app.get('/api/families/:id/people', requireAuth, deviceId, asyncHandler(async (req, res) => {
   const data   = await readDevice(req.deviceId);
   const family = data.families[req.params.id];
   if (!family) return res.status(404).json({ error: 'Not found' });
   res.json(family.people || {});
 }));
 
-app.put('/api/families/:id/people', deviceId, asyncHandler(async (req, res) => {
+app.put('/api/families/:id/people', requireAuth, deviceId, asyncHandler(async (req, res) => {
   const data   = await readDevice(req.deviceId);
   const family = data.families[req.params.id];
   if (!family) return res.status(404).json({ error: 'Not found' });

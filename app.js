@@ -8,6 +8,7 @@
 
 const CURRENT_KEY  = 'familytree_current';   // id of the active family
 const DEVICE_KEY   = 'familytree_device_id'; // anonymous device identifier
+const AUTH_KEY     = 'familytree_auth_token'; // session token when login is enabled
 
 // ============================================================
 // STATE
@@ -31,20 +32,85 @@ function getDeviceId() {
   return id;
 }
 
+// ── Auth: shared family password gate (optional, server-controlled) ──
+function getAuthToken() { return localStorage.getItem(AUTH_KEY); }
+
+function showLoginScreen() {
+  document.getElementById('login-error').textContent = '';
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-overlay').classList.remove('hidden');
+  setTimeout(() => document.getElementById('login-password').focus(), 80);
+}
+
+function hideLoginScreen() {
+  document.getElementById('login-overlay').classList.add('hidden');
+}
+
+async function submitLogin() {
+  const input    = document.getElementById('login-password');
+  const errorEl  = document.getElementById('login-error');
+  const password = input.value;
+  errorEl.textContent = '';
+  let res;
+  try {
+    res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+  } catch {
+    errorEl.textContent = i18n.t('loginErrorGeneric');
+    return;
+  }
+  if (res.status === 429) { errorEl.textContent = i18n.t('loginErrorRateLimited'); return; }
+  if (!res.ok) {
+    errorEl.textContent = i18n.t('loginErrorWrong');
+    input.value = '';
+    input.focus();
+    return;
+  }
+  const { token } = await res.json();
+  if (token) localStorage.setItem(AUTH_KEY, token);
+  hideLoginScreen();
+  await initApp();
+}
+
+// Checks whether the server requires login; shows the login screen and
+// returns false if so (caller should not proceed to initApp() yet).
+async function ensureAuthenticated() {
+  let health;
+  try {
+    health = await fetch('/api/health').then(r => r.json());
+  } catch {
+    return true; // can't reach server yet — let initApp()'s own fetch surface the error
+  }
+  if (!health.authRequired) return true;
+  if (getAuthToken()) return true; // optimistic — a stale/invalid token is caught by apiFetch's 401 handling
+  showLoginScreen();
+  return false;
+}
+
 // ============================================================
 // API LAYER
 // ============================================================
 
 async function apiFetch(path, options = {}) {
   try {
+    const token = getAuthToken();
     const res = await fetch(path, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
         'X-Device-Id': getDeviceId(),
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...(options.headers || {}),
       },
     });
+    if (res.status === 401) {
+      localStorage.removeItem(AUTH_KEY);
+      showLoginScreen();
+      return null;
+    }
     const data = await res.json().catch(() => null);
     if (!res.ok) return null;
     return data;
@@ -828,11 +894,16 @@ async function handlePhotoUpload(event) {
   const formData = new FormData();
   formData.append('photo', file);
   try {
+    const token = getAuthToken();
     const res = await fetch('/api/upload', {
       method: 'POST',
-      headers: { 'X-Device-Id': getDeviceId() },
+      headers: {
+        'X-Device-Id': getDeviceId(),
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
       body: formData,
     });
+    if (res.status === 401) { localStorage.removeItem(AUTH_KEY); showLoginScreen(); return; }
     const data = await res.json();
     if (!res.ok || !data.url) { showToast(i18n.t('toastUploadFailed'), 'error'); return; }
     document.getElementById('person-photo').value = data.url;
@@ -1333,8 +1404,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   initTree();
   Tree3D.init();
 
-  // 3. Load data from server
-  await initApp();
+  // 3. Load data from server (gated behind login if the server requires it)
+  if (await ensureAuthenticated()) await initApp();
 
   // 4. Wire up header buttons
   document.getElementById('btn-add-person').addEventListener('click', () => openAddPersonModal());
