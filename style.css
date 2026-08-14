@@ -288,7 +288,7 @@ header h1 {
   justify-content: space-between;
   gap: 10px;
 }
-.account-email {
+.account-user {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -296,8 +296,8 @@ header h1 {
   color: #666;
   min-width: 0;
 }
-.account-email i { color: #2d6a4f; flex-shrink: 0; }
-.account-email span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.account-user i { color: #2d6a4f; flex-shrink: 0; }
+.account-user span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ============================================================
    Buttons

@@ -28,7 +28,7 @@ async function getDb() {
     const client = new MongoClient(uri, { serverSelectionTimeoutMS: 5000 });
     await client.connect();
     _mongoDb = client.db('familytree');
-    await _mongoDb.collection('users').createIndex({ email: 1 }, { unique: true });
+    await _mongoDb.collection('users').createIndex({ username: 1 }, { unique: true });
     console.log('[DB] Connected to MongoDB Atlas');
     return _mongoDb;
   } catch (err) {
@@ -69,12 +69,12 @@ function asyncHandler(fn) {
 // USERS  (accounts — each user has their own private family data)
 // ============================================================
 
-function normalizeEmail(email) {
-  return String(email || '').trim().toLowerCase();
+function normalizeUsername(username) {
+  return String(username || '').trim().toLowerCase();
 }
 
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+function isValidUsername(username) {
+  return /^[a-zA-Z0-9_]{3,20}$/.test(username);
 }
 
 function genUserId() {
@@ -92,20 +92,22 @@ function writeUsersFile(users) {
   fs.writeFileSync(usersFilePath(), JSON.stringify(users));
 }
 
-async function findUserByEmail(email) {
+// `key` is the normalized (lowercased) username, used for case-insensitive
+// lookup; `username` on the stored record keeps the casing the user typed.
+async function findUserByUsername(key) {
   const db = await getDb();
-  if (db) return db.collection('users').findOne({ email });
-  return readUsersFile()[email] || null;
+  if (db) return db.collection('users').findOne({ username: key });
+  return readUsersFile()[key] || null;
 }
 
-async function createUser(email, passwordHash) {
-  const user = { id: genUserId(), email, passwordHash, createdAt: new Date().toISOString() };
+async function createUser(key, displayUsername, passwordHash) {
+  const user = { id: genUserId(), username: key, displayUsername, passwordHash, createdAt: new Date().toISOString() };
   const db = await getDb();
   if (db) {
     await db.collection('users').insertOne({ _id: user.id, ...user });
   } else {
     const users = readUsersFile();
-    users[email] = user;
+    users[key] = user;
     writeUsersFile(users);
   }
   return user;
@@ -135,7 +137,7 @@ async function writeUserData(userId, data) {
 }
 
 // ============================================================
-// AUTH  (per-account email + password login)
+// AUTH  (per-account username + password login)
 // ============================================================
 // Sessions are stateless signed tokens: "<userId>.<expiry>.<signature>".
 // Set SESSION_SECRET in the environment so tokens survive restarts/redeploys;
@@ -205,30 +207,33 @@ function rateLimited(req, route) {
 // ── Register ─────────────────────────────────────────────────
 app.post('/api/register', asyncHandler(async (req, res) => {
   if (rateLimited(req, 'register')) return res.status(429).json({ error: 'Too many attempts, try again later' });
-  const email    = normalizeEmail(req.body?.email);
-  const password = req.body?.password;
-  if (!isValidEmail(email)) return res.status(400).json({ error: 'Enter a valid email address' });
+  const rawUsername = String(req.body?.username || '').trim();
+  const username     = normalizeUsername(rawUsername);
+  const password     = req.body?.password;
+  if (!isValidUsername(username)) {
+    return res.status(400).json({ error: 'Username must be 3-20 characters: letters, numbers, underscore only' });
+  }
   if (typeof password !== 'string' || password.length < 6) {
     return res.status(400).json({ error: 'Password must be at least 6 characters' });
   }
-  if (await findUserByEmail(email)) return res.status(409).json({ error: 'An account with that email already exists' });
+  if (await findUserByUsername(username)) return res.status(409).json({ error: 'That username is already taken' });
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const user = await createUser(email, passwordHash);
-  res.json({ token: makeSessionToken(user.id), email: user.email });
+  const user = await createUser(username, rawUsername, passwordHash);
+  res.json({ token: makeSessionToken(user.id), username: user.displayUsername });
 }));
 
 // ── Login ────────────────────────────────────────────────────
 app.post('/api/login', asyncHandler(async (req, res) => {
   if (rateLimited(req, 'login')) return res.status(429).json({ error: 'Too many attempts, try again later' });
-  const email    = normalizeEmail(req.body?.email);
+  const username = normalizeUsername(req.body?.username);
   const password = req.body?.password;
-  const user = await findUserByEmail(email);
+  const user = await findUserByUsername(username);
   // Generic error for both "no such user" and "wrong password" — don't reveal which.
   if (!user || typeof password !== 'string' || !(await bcrypt.compare(password, user.passwordHash))) {
-    return res.status(401).json({ error: 'Incorrect email or password' });
+    return res.status(401).json({ error: 'Incorrect username or password' });
   }
-  res.json({ token: makeSessionToken(user.id), email: user.email });
+  res.json({ token: makeSessionToken(user.id), username: user.displayUsername || user.username });
 }));
 
 // ── Health / storage-backend diagnostic ────────────────────────

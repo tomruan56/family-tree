@@ -8,7 +8,7 @@
 
 const CURRENT_KEY  = 'familytree_current';    // id of the active family
 const AUTH_KEY     = 'familytree_auth_token'; // account session token
-const AUTH_EMAIL_KEY = 'familytree_auth_email'; // logged-in email, for display only
+const AUTH_USER_KEY = 'familytree_auth_username'; // logged-in username, for display only
 
 // ============================================================
 // STATE
@@ -22,9 +22,9 @@ const state = {
   mode3d:          false,
 };
 
-// ── Auth: per-account email + password login ──
+// ── Auth: per-account username + password login ──
 function getAuthToken() { return localStorage.getItem(AUTH_KEY); }
-function getAuthEmail() { return localStorage.getItem(AUTH_EMAIL_KEY) || ''; }
+function getAuthUsername() { return localStorage.getItem(AUTH_USER_KEY) || ''; }
 
 let _authMode = 'login'; // 'login' | 'register'
 
@@ -32,11 +32,11 @@ function showLoginScreen() {
   _authMode = 'login';
   applyAuthMode();
   document.getElementById('login-error').textContent = '';
-  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-username').value = '';
   document.getElementById('auth-password').value = '';
   document.getElementById('auth-password-confirm').value = '';
   document.getElementById('login-overlay').classList.remove('hidden');
-  setTimeout(() => document.getElementById('auth-email').focus(), 80);
+  setTimeout(() => document.getElementById('auth-username').focus(), 80);
 }
 
 function hideLoginScreen() {
@@ -61,13 +61,13 @@ function applyAuthMode() {
 
 async function submitAuth() {
   const errorEl   = document.getElementById('login-error');
-  const email     = document.getElementById('auth-email').value.trim();
+  const username  = document.getElementById('auth-username').value.trim();
   const password  = document.getElementById('auth-password').value;
   const confirm   = document.getElementById('auth-password-confirm').value;
   const isRegister = _authMode === 'register';
   errorEl.textContent = '';
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errorEl.textContent = i18n.t('loginErrorInvalidEmail'); return; }
+  if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) { errorEl.textContent = i18n.t('loginErrorInvalidUsername'); return; }
   if (isRegister) {
     if (password.length < 6) { errorEl.textContent = i18n.t('loginErrorPasswordLen'); return; }
     if (password !== confirm) { errorEl.textContent = i18n.t('loginErrorPasswordMismatch'); return; }
@@ -78,7 +78,7 @@ async function submitAuth() {
     res = await fetch(isRegister ? '/api/register' : '/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ username, password }),
     });
   } catch {
     errorEl.textContent = i18n.t('loginErrorGeneric');
@@ -88,22 +88,22 @@ async function submitAuth() {
   if (res.status === 429) { errorEl.textContent = i18n.t('loginErrorRateLimited'); return; }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    errorEl.textContent = /already exists/i.test(body.error || '')
-      ? i18n.t('loginErrorEmailTaken')
+    errorEl.textContent = /already taken/i.test(body.error || '')
+      ? i18n.t('loginErrorUsernameTaken')
       : isRegister ? (body.error || i18n.t('loginErrorGeneric')) : i18n.t('loginErrorWrongCreds');
     return;
   }
 
-  const { token, email: confirmedEmail } = await res.json();
+  const { token, username: confirmedUsername } = await res.json();
   localStorage.setItem(AUTH_KEY, token);
-  localStorage.setItem(AUTH_EMAIL_KEY, confirmedEmail || email);
+  localStorage.setItem(AUTH_USER_KEY, confirmedUsername || username);
   hideLoginScreen();
   await initApp();
 }
 
 function logout() {
   localStorage.removeItem(AUTH_KEY);
-  localStorage.removeItem(AUTH_EMAIL_KEY);
+  localStorage.removeItem(AUTH_USER_KEY);
   localStorage.removeItem(CURRENT_KEY);
   closeModal('modal-families');
   showLoginScreen();
@@ -273,7 +273,7 @@ function addRelationship(type, sourceId, targetId) {
 function openFamiliesModal() {
   renderFamiliesList();
   document.getElementById('new-family-name').value = '';
-  document.getElementById('account-email-text').textContent = getAuthEmail();
+  document.getElementById('account-username-text').textContent = getAuthUsername();
   openModal('modal-families');
   setTimeout(() => document.getElementById('new-family-name').focus(), 80);
 }
