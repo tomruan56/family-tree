@@ -426,7 +426,7 @@ function hideWelcomeScreen() {
 // LAYOUT ENGINE
 // ============================================================
 
-const NODE_W = 200, NODE_H = 90, H_GAP = 36, V_GAP = 40;
+const NODE_W = 200, NODE_H = 90, H_GAP = 36, V_GAP = 110; // pitch = NODE_H + V_GAP = 200
 
 function buildLayout() {
   const people = getAllPeople();
