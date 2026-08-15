@@ -331,12 +331,15 @@
         el.title = this.t(el.dataset.i18nTitle);
       });
       document.title = this.t('appTitle');
-      // Update both the header lang button and the ⋯ more-menu label
+      // Update the header lang button, the ⋯ more-menu label, and the
+      // login/register screen's own lang button
       const altLabel = this.lang === 'en' ? '🇻🇳 VI' : '🇺🇸 EN';
       const btn = document.getElementById('btn-lang');
       if (btn) btn.textContent = altLabel;
       const moreLang = document.getElementById('more-lang-label');
       if (moreLang) moreLang.textContent = altLabel;
+      const authLang = document.getElementById('btn-lang-auth');
+      if (authLang) authLang.textContent = altLabel;
     },
   };
 })();

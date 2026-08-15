@@ -1267,6 +1267,11 @@ function toggleLanguage() {
   if (!document.getElementById('modal-families').classList.contains('hidden')) {
     renderFamiliesList();
   }
+  // applyTranslations() resets the login/register text to its static
+  // (login-mode) default, so re-apply whichever mode is actually active.
+  if (!document.getElementById('login-overlay').classList.contains('hidden')) {
+    applyAuthMode();
+  }
 }
 
 // ============================================================
