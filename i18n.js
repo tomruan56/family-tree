@@ -91,6 +91,8 @@
       phPhotoUrl:           'https://example.com/photo.jpg',
       phNotes:              'Biography, occupation, interesting facts…',
       phSearchName:         'Type a name…',
+      phSearchNameOrYear:   'Search by name or birth year…',
+      searchBtn:            'Search',
       // Relation modal
       linkPrefix:           'Link:',
       relTypeParent:        'Parent',
@@ -239,6 +241,8 @@
       phPhotoUrl:           'https://example.com/anh.jpg',
       phNotes:              'Tiểu sử, nghề nghiệp, thông tin thú vị…',
       phSearchName:         'Nhập tên…',
+      phSearchNameOrYear:   'Tìm theo tên hoặc năm sinh…',
+      searchBtn:            'Tìm Kiếm',
       // Relation modal
       linkPrefix:           'Kết nối:',
       relTypeParent:        'Cha/Mẹ',

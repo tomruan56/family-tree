@@ -1085,6 +1085,7 @@ header { position: relative; }
    ============================================================ */
 @media (max-width: 768px) {
   /* Hide desktop-only header items */
+  #btn-search,
   #btn-import,
   #btn-export,
   #btn-lang,

@@ -81,6 +81,10 @@
         </button>
       </div>
       <div class="header-right">
+        <button id="btn-search" class="btn btn-secondary" onclick="openPeopleList()">
+          <i class="fas fa-search"></i>
+          <span data-i18n="searchBtn">Search</span>
+        </button>
         <button id="btn-add-person" class="btn btn-primary">
           <i class="fas fa-user-plus"></i>
           <span data-i18n="addPerson">Add Person</span>
@@ -189,7 +193,8 @@
     <i class="fas fa-user-plus"></i>
   </button>
 
-  <!-- Mobile: People list sheet -->
+  <!-- People list / search sheet (reachable from the desktop header's
+       Search button and the mobile ⋯ menu) -->
   <div id="people-list-sheet" class="pls-sheet hidden">
     <div class="pls-header">
       <span data-i18n="peopleList">People List</span>
@@ -197,8 +202,8 @@
     </div>
     <div class="pls-search-row">
       <i class="fas fa-search pls-search-icon"></i>
-      <input type="text" id="pls-search" data-i18n-ph="phSearchName"
-        placeholder="Search…" oninput="renderPeopleList()" autocomplete="off">
+      <input type="text" id="pls-search" data-i18n-ph="phSearchNameOrYear"
+        placeholder="Search by name or birth year…" oninput="renderPeopleList()" autocomplete="off">
     </div>
     <div id="pls-list" class="pls-list"></div>
   </div>

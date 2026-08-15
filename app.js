@@ -1192,9 +1192,14 @@ function closePeopleList() {
 }
 
 function renderPeopleList() {
-  const q      = (document.getElementById('pls-search').value || '').toLowerCase();
+  const q      = (document.getElementById('pls-search').value || '').trim().toLowerCase();
   const people = getAllPeople()
-    .filter(p => !q || getDisplayName(p).toLowerCase().includes(q))
+    .filter(p => {
+      if (!q) return true;
+      if (getDisplayName(p).toLowerCase().includes(q)) return true;
+      const by = year(p.birthDate);
+      return by !== null && String(by).includes(q);
+    })
     .sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)));
 
   const container = document.getElementById('pls-list');
