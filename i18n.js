@@ -115,6 +115,7 @@
       fitScreen:            'Fit to screen',
       increaseSpacing:      'Increase row spacing',
       decreaseSpacing:      'Decrease row spacing',
+      rowSpacing:           'Row spacing (px)',
       // Sidebar
       sbDetails:            'Details',
       sbParents:            'Parents',
@@ -267,6 +268,7 @@
       fitScreen:            'Vừa Màn Hình',
       increaseSpacing:      'Tăng Khoảng Cách Hàng',
       decreaseSpacing:      'Giảm Khoảng Cách Hàng',
+      rowSpacing:           'Khoảng cách hàng (px)',
       // Sidebar
       sbDetails:            'Chi Tiết',
       sbParents:            'Cha Mẹ',

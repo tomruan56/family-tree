@@ -447,6 +447,20 @@ main {
   margin: 2px 4px;
 }
 
+/* Row-spacing value readout between the +/- buttons */
+.vgap-value {
+  width: 36px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #888;
+  font-family: inherit;
+  user-select: none;
+}
+
 /* 3D controls hint bar */
 .hint-3d {
   position: absolute;

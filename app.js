@@ -436,9 +436,15 @@ function clampVGap(v) { return Math.min(VGAP_MAX, Math.max(VGAP_MIN, v)); }
 
 let V_GAP = clampVGap(parseInt(localStorage.getItem(VGAP_KEY), 10) || VGAP_DEFAULT);
 
+function updateVGapReadout() {
+  const el = document.getElementById('vgap-value');
+  if (el) el.textContent = V_GAP;
+}
+
 function adjustVGap(delta) {
   V_GAP = clampVGap(V_GAP + delta);
   localStorage.setItem(VGAP_KEY, String(V_GAP));
+  updateVGapReadout();
   renderTree();
 }
 
@@ -1463,6 +1469,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 2. Init D3 tree canvas + Three.js renderer
   initTree();
   Tree3D.init();
+  updateVGapReadout();
 
   // 3. Load data from server (gated behind login if the server requires it)
   if (await ensureAuthenticated()) await initApp();

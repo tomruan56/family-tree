@@ -154,12 +154,9 @@
           <button id="btn-zoom-out" data-i18n-title="zoomOut"><i class="fas fa-minus"></i></button>
           <button id="btn-zoom-fit" data-i18n-title="fitScreen"><i class="fas fa-compress-arrows-alt"></i></button>
           <div class="tree-ctrl-divider"></div>
-          <button id="btn-vgap-inc" data-i18n-title="increaseSpacing" onclick="adjustVGap(20)">
-            <i class="fas fa-expand"></i>
-          </button>
-          <button id="btn-vgap-dec" data-i18n-title="decreaseSpacing" onclick="adjustVGap(-20)">
-            <i class="fas fa-compress"></i>
-          </button>
+          <button id="btn-vgap-inc" data-i18n-title="increaseSpacing" onclick="adjustVGap(20)">+</button>
+          <div id="vgap-value" class="vgap-value" data-i18n-title="rowSpacing">150</div>
+          <button id="btn-vgap-dec" data-i18n-title="decreaseSpacing" onclick="adjustVGap(-20)">&minus;</button>
           <div class="tree-ctrl-divider"></div>
           <button id="btn-3d-toggle" title="3D Mode" onclick="toggle3DMode()">
             <i class="fas fa-cube"></i>
