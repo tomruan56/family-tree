@@ -113,6 +113,8 @@
       zoomIn:               'Zoom In',
       zoomOut:              'Zoom Out',
       fitScreen:            'Fit to screen',
+      increaseSpacing:      'Increase row spacing',
+      decreaseSpacing:      'Decrease row spacing',
       // Sidebar
       sbDetails:            'Details',
       sbParents:            'Parents',
@@ -263,6 +265,8 @@
       zoomIn:               'Phóng To',
       zoomOut:              'Thu Nhỏ',
       fitScreen:            'Vừa Màn Hình',
+      increaseSpacing:      'Tăng Khoảng Cách Hàng',
+      decreaseSpacing:      'Giảm Khoảng Cách Hàng',
       // Sidebar
       sbDetails:            'Chi Tiết',
       sbParents:            'Cha Mẹ',

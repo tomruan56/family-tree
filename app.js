@@ -426,7 +426,21 @@ function hideWelcomeScreen() {
 // LAYOUT ENGINE
 // ============================================================
 
-const NODE_W = 200, NODE_H = 90, H_GAP = 36, V_GAP = 110; // pitch = NODE_H + V_GAP = 200
+const NODE_W = 200, NODE_H = 90, H_GAP = 36;
+
+// Vertical gap between generation rows — user-adjustable, persisted per browser.
+const VGAP_KEY = 'familytree_vgap';
+const VGAP_MIN = 100, VGAP_MAX = 300, VGAP_DEFAULT = 150, VGAP_STEP = 20;
+
+function clampVGap(v) { return Math.min(VGAP_MAX, Math.max(VGAP_MIN, v)); }
+
+let V_GAP = clampVGap(parseInt(localStorage.getItem(VGAP_KEY), 10) || VGAP_DEFAULT);
+
+function adjustVGap(delta) {
+  V_GAP = clampVGap(V_GAP + delta);
+  localStorage.setItem(VGAP_KEY, String(V_GAP));
+  renderTree();
+}
 
 function buildLayout() {
   const people = getAllPeople();
