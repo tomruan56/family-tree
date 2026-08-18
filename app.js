@@ -503,6 +503,8 @@ function buildLayout() {
     });
 
     // Sort clusters: those with positioned parents come first, ordered by parent midpoint X.
+    // Full siblings (same parent anchor) are then ordered eldest → youngest, so the
+    // eldest child renders closest to the parent and the youngest farthest away.
     clusters.forEach(cluster => {
       const xs = [];
       cluster.forEach(p => {
@@ -512,22 +514,51 @@ function buildLayout() {
         });
       });
       cluster._anchorX = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+      // Birth rank of whichever cluster member is actually a child here
+      // (their spouse, if any, married in and has no bearing on birth order).
+      const birthYears = cluster.map(p => (p.parentIds||[]).length ? year(p.birthDate) : null)
+        .filter(y => y != null);
+      cluster._birthRank = birthYears.length ? Math.min(...birthYears) : Infinity; // unknown birth sorts last
     });
     clusters.sort((a, b) => {
       if (a._anchorX == null && b._anchorX == null) return 0;
       if (a._anchorX == null) return 1;
       if (b._anchorX == null) return -1;
-      return a._anchorX - b._anchorX;
+      if (a._anchorX !== b._anchorX) return a._anchorX - b._anchorX;
+      return a._birthRank - b._birthRank;
     });
 
-    // Place clusters left-to-right, centred around 0.
+    // Place clusters left-to-right. Where a cluster's parent(s) are already
+    // positioned, anchor the ELDEST sibling directly under the parent's
+    // centre and place each younger sibling one slot further right — so
+    // horizontal distance from the parent grows strictly with birth order
+    // (eldest closest, youngest farthest). Clusters with no positioned
+    // parent (the root generation) fall back to a simple centred row. A
+    // left-to-right sweep then nudges any overlapping clusters apart while
+    // preserving this order.
+    const clusterWidth = cluster => cluster.length * NODE_W + (cluster.length - 1) * H_GAP;
     const totalW = row.length * NODE_W + (row.length - 1) * H_GAP;
-    let x = -totalW / 2;
-    clusters.forEach(cluster => {
+    let fallbackX = -totalW / 2;
+
+    let siblingIdx = 0, curAnchor;
+    const ideal = clusters.map(cluster => {
+      if (cluster._anchorX == null) return null;
+      if (cluster._anchorX !== curAnchor) { curAnchor = cluster._anchorX; siblingIdx = 0; }
+      const ix = curAnchor - NODE_W / 2 + siblingIdx * (NODE_W + H_GAP);
+      siblingIdx++;
+      return ix;
+    });
+
+    let cursor = -Infinity; // right edge of the previously placed cluster
+    clusters.forEach((cluster, i) => {
+      let startX = ideal[i];
+      if (startX == null) { startX = fallbackX; fallbackX += clusterWidth(cluster) + H_GAP; }
+      if (cursor > -Infinity && startX < cursor + H_GAP) startX = cursor + H_GAP;
       cluster.forEach(p => {
-        pos.set(p.id, { x, y });
-        x += NODE_W + H_GAP;
+        pos.set(p.id, { x: startX, y });
+        startX += NODE_W + H_GAP;
       });
+      cursor = startX - H_GAP;
     });
   });
 
